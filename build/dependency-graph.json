@@ -1,0 +1,10 @@
+{
+  ":sample-application": {
+    "projectDir": "sample-application",
+    "dependencies": [],
+    "deployable": false
+  },
+  "external-dependecnies": [
+    "junit:junit:4.13.2"
+  ]
+}
