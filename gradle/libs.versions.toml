@@ -1,0 +1,29 @@
+[versions]
+# Core versions
+kotlin = "1.8.20"
+
+# JUnit Platform / Jupiter
+junitJupiter = "5.10.2"
+junitVintage = "5.10.2"
+
+# SBE toolchain
+agronaDefault = "1.21.2"
+sbeToolDefault = "1.31.0"
+agronaJava8 = "1.21.2"
+sbeToolJava8 = "1.8.1"
+
+[libraries]
+# Test dependencies
+junit = { module = "junit:junit", version = "4.13.2" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiter" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junitJupiter" }
+junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine", version.ref = "junitVintage" }
+
+# SBE codegen toolchain (default and Java 8)
+agrona = { module = "org.agrona:agrona", version.ref = "agronaDefault" }
+sbe-tool = { module = "uk.co.real-logic:sbe-tool", version.ref = "sbeToolDefault" }
+agronaJava8 = { module = "org.agrona:agrona", version.ref = "agronaJava8" }
+sbeToolJava8 = { module = "uk.co.real-logic:sbe-tool", version.ref = "sbeToolJava8" }
+sbe-all = { module = "uk.co.real-logic:sbe-all", version.ref = "sbeToolDefault" }
+sbeAllJava8 = { module = "uk.co.real-logic:sbe-all", version.ref = "sbeToolJava8" }
+

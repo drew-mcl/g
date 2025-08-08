@@ -34,9 +34,13 @@ class SbePlugin : Plugin<Project> {
             agronaJava8Alias.convention("agronaJava8")
             sbeToolAlias.convention("sbe-tool")
             sbeToolJava8Alias.convention("sbeToolJava8")
+            sbeAllAlias.convention("sbe-all")
+            sbeAllJava8Alias.convention("sbeAllJava8")
 
             agronaCoordinateOverride.convention("")
             sbeToolCoordinateOverride.convention("")
+            sbeAllCoordinateOverride.convention("")
+            useSbeAllForCompileClasspath.convention(true)
         }
 
         // Configuration to resolve sbe-tool
@@ -46,24 +50,43 @@ class SbePlugin : Plugin<Project> {
             isTransitive = true
         }
 
-        val libsCatalog = project.extensions.findByType(VersionCatalogsExtension::class.java)?.named("libs")
+        val libsCatalog = try {
+            project.extensions.findByType(VersionCatalogsExtension::class.java)?.named("libs")
+        } catch (t: Throwable) {
+            null
+        }
 
-        fun addToolDependency() {
+        fun addToolDependencies() {
             val coordOverride = ext.sbeToolCoordinateOverride.orNull?.trim().orEmpty()
             if (coordOverride.isNotEmpty()) {
                 project.dependencies.add(sbeToolCfg.name, coordOverride)
-                return
+            } else {
+                val toolAlias = if (ext.java8Compatibility.get()) ext.sbeToolJava8Alias.get() else ext.sbeToolAlias.get()
+                val toolLib = libsCatalog?.findLibrary(toolAlias)
+                if (toolLib != null && toolLib.isPresent) {
+                    project.dependencies.add(sbeToolCfg.name, toolLib.get())
+                } else {
+                    // Sensible fallback defaults
+                    val fallback = if (ext.java8Compatibility.get()) "uk.co.real-logic:sbe-tool:1.8.1" else "uk.co.real-logic:sbe-tool:1.31.0"
+                    project.dependencies.add(sbeToolCfg.name, fallback)
+                    project.logger.warn("SBE: Version catalog alias '$toolAlias' not found. Using fallback $fallback")
+                }
             }
 
-            val toolAlias = if (ext.java8Compatibility.get()) ext.sbeToolJava8Alias.get() else ext.sbeToolAlias.get()
-            val toolLib = libsCatalog?.findLibrary(toolAlias)
-            if (toolLib != null && toolLib.isPresent) {
-                project.dependencies.add(sbeToolCfg.name, toolLib.get())
+            // Also add sbe-all which some setups require on the tool classpath
+            val allOverride = ext.sbeAllCoordinateOverride.orNull?.trim().orEmpty()
+            if (allOverride.isNotEmpty()) {
+                project.dependencies.add(sbeToolCfg.name, allOverride)
             } else {
-                // Sensible fallback defaults
-                val fallback = if (ext.java8Compatibility.get()) "uk.co.real-logic:sbe-tool:1.8.1" else "uk.co.real-logic:sbe-tool:1.31.0"
-                project.dependencies.add(sbeToolCfg.name, fallback)
-                project.logger.warn("SBE: Version catalog alias '$toolAlias' not found. Using fallback $fallback")
+                val allAlias = if (ext.java8Compatibility.get()) ext.sbeAllJava8Alias.get() else ext.sbeAllAlias.get()
+                val allLib = libsCatalog?.findLibrary(allAlias)
+                if (allLib != null && allLib.isPresent) {
+                    project.dependencies.add(sbeToolCfg.name, allLib.get())
+                } else {
+                    val fallbackAll = if (ext.java8Compatibility.get()) "uk.co.real-logic:sbe-all:1.8.1" else "uk.co.real-logic:sbe-all:1.31.0"
+                    project.dependencies.add(sbeToolCfg.name, fallbackAll)
+                    project.logger.warn("SBE: Version catalog alias '$allAlias' not found. Using fallback $fallbackAll")
+                }
             }
         }
 
@@ -81,6 +104,23 @@ class SbePlugin : Plugin<Project> {
                 val fallback = if (ext.java8Compatibility.get()) "org.agrona:agrona:1.21.2" else "org.agrona:agrona:1.21.2"
                 project.dependencies.add(configurationName, fallback)
                 project.logger.warn("SBE: Version catalog alias '$alias' not found. Using fallback $fallback")
+            }
+        }
+
+        fun addSbeAllDependency(configurationName: String) {
+            val allOverride = ext.sbeAllCoordinateOverride.orNull?.trim().orEmpty()
+            if (allOverride.isNotEmpty()) {
+                project.dependencies.add(configurationName, allOverride)
+                return
+            }
+            val allAlias = if (ext.java8Compatibility.get()) ext.sbeAllJava8Alias.get() else ext.sbeAllAlias.get()
+            val lib = libsCatalog?.findLibrary(allAlias)
+            if (lib != null && lib.isPresent) {
+                project.dependencies.add(configurationName, lib.get())
+            } else {
+                val fallbackAll = if (ext.java8Compatibility.get()) "uk.co.real-logic:sbe-all:1.8.1" else "uk.co.real-logic:sbe-all:1.31.0"
+                project.dependencies.add(configurationName, fallbackAll)
+                project.logger.warn("SBE: Version catalog alias '$allAlias' not found. Using fallback $fallbackAll")
             }
         }
 
@@ -106,7 +146,16 @@ class SbePlugin : Plugin<Project> {
                     "-Dsbe.target.language=${ext.language.get()}",
                     "-Dsbe.output.dir=${outDir.get().asFile.absolutePath}"
                 )
-                args(schemas.files.map { it.absolutePath })
+                doFirst {
+                    val files = schemas.files
+                    if (files.isEmpty()) {
+                        // No schemas; skip execution so build remains green
+                        logger.lifecycle("SBE: No schema files under ${schemaDir.get().asFile}. Skipping $name")
+                        this.enabled = false
+                    } else {
+                        args(files.map { it.absolutePath })
+                    }
+                }
             }
 
             project.extensions.getByType(SourceSetContainer::class.java)
@@ -114,11 +163,15 @@ class SbePlugin : Plugin<Project> {
 
             project.tasks.named(compileTaskName).configure { dependsOn(gen) }
 
-            addAgronaDependency(dependencyConf)
+            if (ext.useSbeAllForCompileClasspath.get()) {
+                addSbeAllDependency(dependencyConf)
+            } else {
+                addAgronaDependency(dependencyConf)
+            }
         }
 
         project.afterEvaluate {
-            addToolDependency()
+            addToolDependencies()
 
             if (ext.generateForMain.get()) {
                 register(
