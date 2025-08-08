@@ -48,3 +48,15 @@ java {
         languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17))
     }
 }
+
+
+gradlePlugin {
+  plugins {
+    create("sbe") {
+      id = "com.company.build.sbe"
+      implementationClass = "com.company.build.SbePlugin"
+      displayName = "SBE codegen"
+      description = "Generates SBE sources for main, test, or testFixtures"
+    }
+  }
+}
