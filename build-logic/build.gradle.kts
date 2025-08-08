@@ -14,8 +14,6 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20")
     implementation("com.google.code.gson:gson:2.10.1")
     testImplementation("junit:junit:4.13.2")
 }
@@ -42,5 +40,11 @@ publishing {
         create<org.gradle.api.publish.maven.MavenPublication>("maven") {
             from(components["java"])
         }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17))
     }
 }

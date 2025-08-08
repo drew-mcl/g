@@ -2,6 +2,10 @@
 # Core versions
 kotlin = "1.8.20"
 gradle = "8.0"
+ 
+ # JUnit Platform / Jupiter
+ junitJupiter = "5.10.2"
+ junitVintage = "5.10.2"
 
 # Native tools versions
 journal = "2.1.0"
@@ -14,6 +18,9 @@ uexe = { module = "com.company:uexe", version.ref = "uexe" }
 
 # Test dependencies
 junit = { module = "junit:junit", version = "4.13.2" }
+ junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiter" }
+ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junitJupiter" }
+ junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine", version.ref = "junitVintage" }
 
 [plugins]
 # Gradle plugins

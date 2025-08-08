@@ -133,6 +133,43 @@ class AsgardJavaPluginBasic : Plugin<Project> {
     }
     
     private fun configureTestSettings(project: Project, extension: AsgardExtension) {
+        // Require the consumer's version catalog and specific aliases for JUnit Platform
+        val catalogsExt = project.extensions.findByType(VersionCatalogsExtension::class.java)
+        val libsCatalog = try {
+            catalogsExt?.named("libs")
+        } catch (t: Throwable) {
+            null
+        }
+
+        if (libsCatalog == null) {
+            project.logger.error("Required version catalog 'libs' not found. Define it in gradle/libs.versions.toml or import it via settings.gradle.kts.")
+            throw org.gradle.api.GradleException("Missing required version catalog 'libs' for JUnit configuration")
+        }
+
+        val jupiterApi = libsCatalog.findLibrary("junit-jupiter-api").orElse(null)
+        val jupiterEngine = libsCatalog.findLibrary("junit-jupiter-engine").orElse(null)
+        val vintageEngine = libsCatalog.findLibrary("junit-vintage-engine").orElse(null)
+
+        val missingAliases = mutableListOf<String>()
+        if (jupiterApi == null) missingAliases.add("libs.junit-jupiter-api")
+        if (jupiterEngine == null) missingAliases.add("libs.junit-jupiter-engine")
+        if (vintageEngine == null) missingAliases.add("libs.junit-vintage-engine")
+
+        if (missingAliases.isNotEmpty()) {
+            project.logger.error("Missing required JUnit aliases in version catalog: ${missingAliases.joinToString(", ")}")
+            project.logger.error("Add them to gradle/libs.versions.toml, e.g. junit-jupiter-api, junit-jupiter-engine, junit-vintage-engine")
+            throw org.gradle.api.GradleException("Missing required JUnit catalog aliases: ${missingAliases.joinToString(", ")}")
+        }
+
+        project.dependencies.add("testImplementation", jupiterApi)
+        project.dependencies.add("testRuntimeOnly", jupiterEngine)
+        project.dependencies.add("testRuntimeOnly", vintageEngine)
+
+        // Always use JUnit Platform for all Test tasks
+        project.tasks.withType(org.gradle.api.tasks.testing.Test::class.java).configureEach {
+            useJUnitPlatform()
+        }
+
         // Apply test JVM args and system properties when running on Java 9+ (includes Java 17)
         val isJava9Plus = try {
             // Prefer JavaVersion API when available
